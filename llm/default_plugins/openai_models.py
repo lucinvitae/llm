@@ -52,6 +52,7 @@ def register_models(register):
         api_version = extra_model.get("api_version")
         api_engine = extra_model.get("api_engine")
         headers = extra_model.get("headers")
+        api_deployment_name = extra_model.get("api_deployment_name")
         if extra_model.get("completion"):
             klass = Completion
         else:
@@ -64,6 +65,7 @@ def register_models(register):
             api_version=api_version,
             api_engine=api_engine,
             headers=headers,
+            api_deployment_name=api_deployment_name,
         )
         if api_base:
             chat_model.needs_key = None
@@ -264,6 +266,7 @@ class Chat(Model):
         api_version=None,
         api_engine=None,
         headers=None,
+        api_deployment_name=None,
     ):
         self.model_id = model_id
         self.key = key
@@ -273,6 +276,7 @@ class Chat(Model):
         self.api_version = api_version
         self.api_engine = api_engine
         self.headers = headers
+        self.api_deployment_name = api_deployment_name
 
     def __str__(self):
         return "OpenAI Chat: {}".format(self.model_id)
@@ -334,6 +338,8 @@ class Chat(Model):
             kwargs["api_version"] = self.api_version
         if self.api_engine:
             kwargs["engine"] = self.api_engine
+        if self.api_deployment_name:
+            kwargs["api_deployment_name"] = self.api_deployment_name
         if self.needs_key:
             if self.key:
                 kwargs["api_key"] = self.key
@@ -345,6 +351,13 @@ class Chat(Model):
             kwargs["default_headers"] = self.headers
         if os.environ.get("LLM_OPENAI_SHOW_RESPONSES"):
             kwargs["http_client"] = logging_client()
+        if self.api_type == "azure":
+            client_kwargs = dict(
+                api_version=self.api_version,
+                azure_endpoint=self.api_base,
+                azure_deployment=self.api_deployment_name,
+            )
+            return openai.AzureOpenAI(**client_kwargs)
         return openai.OpenAI(**kwargs)
 
     def build_kwargs(self, prompt):
